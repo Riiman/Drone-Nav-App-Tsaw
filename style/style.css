@@ -5,6 +5,13 @@ html, body {
     padding: 0;
   }
 
+.location-animate{
+    position: absolute;
+    z-index: 100;
+    top: 20px;
+    left: 50px;
+}
+
 .drone-controller {
     position: absolute;
     z-index: 100;

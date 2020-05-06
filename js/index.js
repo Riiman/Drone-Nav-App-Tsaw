@@ -4,6 +4,7 @@ var infoWindow;
 
 var pathAr = [];
 
+var position = [28.7041, 77.1555];
 
     // map options
     function initMap(){
@@ -17,22 +18,14 @@ var pathAr = [];
         
         infoWindow = new google.maps.InfoWindow();
         
-
-        //var deleteMenu = new DeleteMenu();
-
-        // poly = new google.maps.Polyline({
-        //     strokeColor: '#000000',
-        //     strokeOpacity: 1.0,
-        //     strokeWeight: 3
-        //   });
+        updateDroneStatus();
         
-
-        // searchStoresFn();
         showDronesMarker(drones);
         
     
     }
 
+    //Function to clear all markers
     function clearLocations() {
         infoWindow.close();
         for(var i = 0; i < markers.length; i++) {
@@ -42,19 +35,71 @@ var pathAr = [];
     }
 
 
-// function updateDroneStatus(latlng, markers){
-//     //    changing the lat lng of the existing control
-//     document.querySelector('#change-loaction-btn').addEventListener('click', function(){
+
+// funtion to keep changing amarker location
+function updateDroneStatus(){
+    //  changing the lat lng of the existing control
+    var interval1;
+    var latlng = new google.maps.LatLng(position[0], position[1]);
+    
+    //Making a initial marker that moves
+    var markerMove = new google.maps.Marker({
+        position: latlng,
+        map: map
+      });
+
+      // Drawing polyline for each marker path
+      var movePathAr = [];
+      
+      var movePath = new google.maps.Polyline({
+                    strokeColor: '#000000',
+                    strokeOpacity: 1.0,
+                    strokeWeight: 3
+                  });
+
+      movePath.setMap(map);
         
-//         var latlng = new google.maps.LatLng(28.7041, 76.2231);
-//         marker.setPosition(latlng);
-//         clearLocations();
-//         showDronesMarker();
-//     });
+    
+      
+
+    document.querySelector('#change-location-btn').addEventListener('click', function(){
+        var deltaLat = position[1]
+
+        //Interval Runs every 0.5 seconds
+        movePathAr.push(latlng);
+
+        interval1 = setInterval(function() {
+
+            deltaLat += 0.001;
+            var delatLatlng = new google.maps.LatLng(position[0], deltaLat);
+            
+            
+            //changing marker pos
+            markerMove.setPosition(delatLatlng);
+            
+            // Drawing polyline for movement
+            movePathAr = movePath.getPath();
+
+            movePathAr.push(delatLatlng);
+
+        }, 100)
+
+    });
+    
+    document.querySelector('#stop-location-btn').addEventListener('click', function(){
+        //comes back to initial pos
+        markerMove.setPosition(latlng);
+        movePath.setMap(null);
+        movePathAr = [];
+        updateDroneStatus()
+        //clears interval
+        clearInterval(interval1);
+    });
+
+}
 
 
-// }
-
+// function to show all drones owned initially from static drone.js file
 function showDronesMarker(drones) {
     var bounds = new google.maps.LatLngBounds(); //zooms out the map accordingly 
     for(var [index, drone] of drones.entries()) {
@@ -76,7 +121,7 @@ function showDronesMarker(drones) {
 
 }
 
-
+// create a marker function and it also has the controller activities in it
 function createMarker(latlng, droneId, location, name, accuracy, signalStrength,  batteryLevel, index){
     var html = `<div class="drone-info-window">
                     <div class="drone-name">
@@ -132,58 +177,74 @@ function createMarker(latlng, droneId, location, name, accuracy, signalStrength,
                 document.querySelector('#close-control-btn').addEventListener('click', closeController);
             
                 
-                var flightPath;
-                
+                var flightPath = new google.maps.Polyline({
+                                    geodesic: true,
+                                    strokeColor: '#0000FF',
+                                    strokeOpacity: 1.0,
+                                    strokeWeight: 2
+                                });
+                    
+                flightPath.setMap(map);
+               
+                var vertex = new google.maps.Marker({
+                    map:map,
+                });
+
                 var listener1;
                 var interval = null;
-                
+                var path = [];
+
                 document.querySelector('#add-path-btn').onclick = function () {
-                    var path = [];
+                    
+
+                    path = flightPath.getPath();
                     path.push(latlng);
+                    
                     let i = 2;
 
                     
                       listener1 = map.addListener('click', function(mapsMouseEvent) {
-                            //Get the lat lng of the click event 
-                        path.push(mapsMouseEvent.latLng);
-                        
-                        interval = setInterval(function () {        
-                            var vertex = new google.maps.Marker({
-                                map:map,
-                                position: mapsMouseEvent.latLng,
-                                
-                            });
-                    
-                            flightPath = new google.maps.Polyline({
-                                path: path,
-                                geodesic: true,
-                                strokeColor: '#0000FF',
-                                strokeOpacity: 1.0,
-                                strokeWeight: 2
-                                });
                             
-                            flightPath.setMap(map);
-                              i = i+1;  
-                            });
+                            //Get the lat lng of the click event     
                             
-                          console.log(i);  
-                        }, 10);
-                        
-                        
-                        pathAr.push(
-                            {
-                                Id: droneId,
-                                pathArray: path      
-                            }   
-                        );
+                            // placing the marker
+                            vertex.setPosition(mapsMouseEvent.latLng);
+                            
+                            //drawing polyline through MVC array
+                            path.push(mapsMouseEvent.latLng);
+
+                            i = i+1;
+                            console.log(i);
+
+                            });
+
+                           
+                            
+                           
 
                 };
 
                 document.querySelector('#terminate-path-btn').onclick = function () {
+                    pathAr.push(
+                        {
+                            Id: droneId,
+                            pathArray: path      
+                        }   
+                    );
                     
+                   
+                    // to shut down click listener on map
                     google.maps.event.clearInstanceListeners(map);
+
+                    // close the controller
                     document.querySelector('.drone-controller').style.display='None';
-                    clearInterval(interval);
+                    
+                    // interval close
+                    // clearInterval(interval);
+
+                    flightPath.setMap(null);
+                    vertex.setMap(null);
+
                     alert("Path successfully added for drone");
                     console.log(pathAr);
                     
@@ -216,4 +277,5 @@ function createMarker(latlng, droneId, location, name, accuracy, signalStrength,
 function closeController(){
     document.querySelector('.drone-controller').style.display='None';
 }
+
 
